@@ -1,3 +1,4 @@
+{-# OPTIONS --safe --without-K #-}
 module Duration where
 
 open import Level
