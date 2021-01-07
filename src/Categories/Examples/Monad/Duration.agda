@@ -48,53 +48,59 @@ monoid×-₁ _ record { _⟨$⟩_ = f ; cong = cong } = record
   }
 
 monoid×-hom : let open Setoid renaming (Carrier to Carrierₛ) in
-    ∀ {l} {x y z : Setoid l l} {m : Monoid l l} {x₁ y₁ : Σ (Carrier m) (λ _ → Carrierₛ x)}
-    → (f : Π x (indexedSetoid y))
-    → (g : Π y (indexedSetoid z))
-    → let open Setoid x renaming (_≈_ to _≈ₓ_) in (proj₂ x₁) ≈ₓ (proj₂ y₁)
-    → let open Setoid z renaming (_≈_ to _≈ₛ_) in (g ⟨$⟩ (f ⟨$⟩ proj₂ x₁)) ≈ₛ (g ⟨$⟩ (f ⟨$⟩ proj₂ y₁))
+  ∀ {l} {x y z : Setoid l l} {m : Monoid l l} {x₁ y₁ : Σ (Carrier m) (λ _ → Carrierₛ x)}
+  → (f : Π x (indexedSetoid y))
+  → (g : Π y (indexedSetoid z))
+  → let open Setoid x renaming (_≈_ to _≈ₓ_) in (proj₂ x₁) ≈ₓ (proj₂ y₁)
+  → let open Setoid z renaming (_≈_ to _≈ₛ_) in (g ⟨$⟩ (f ⟨$⟩ proj₂ x₁)) ≈ₛ (g ⟨$⟩ (f ⟨$⟩ proj₂ y₁))
 monoid×-hom record { cong = congₘ } record { cong = congₛ } p = congₛ $ congₘ p
 
 monoid×-endo : ∀ {l} → Monoid l l → Endofunctor (Setoids l l)
 monoid×-endo m =  record
   { F₀ = monoid×-₀ m
   ; F₁ = monoid×-₁ m
-  ; identity = λ x → x
+  ; identity = λ x≈y → x≈y
   ; homomorphism = λ {_} {_} {_} {f} {g} {x₁} {y₁} (fst , snd) → fst , monoid×-hom {_} {_} {_} {_} {m} {x₁} {y₁} f g snd
   ; F-resp-≈ = λ x (fst , snd) → fst , x snd
   }
 
 monoid×-η : ∀ {l} → (m : Monoid l l) → NaturalTransformation idF (monoid×-endo m)
-monoid×-η record { ε = ε ; isMonoid = isMonoid } = record
-  { η = λ _ → record { _⟨$⟩_ = λ x → ε , x ; cong = λ x → isEquivalenceᵐ , x }
-  ; commute = λ f x → isEquivalenceᵐ , cong f x
-  ; sym-commute = λ f x → isEquivalenceᵐ , cong f x
-  } where
-  isEquivalenceᵐ = IsEquivalence.refl $ IsMagma.isEquivalence $ IsSemigroup.isMagma $ IsMonoid.isSemigroup isMonoid
+monoid×-η m = record
+  { η = λ _ → record { _⟨$⟩_ = λ x → εₘ , x ; cong = λ x → refl isEquivalenceₘ , x }
+  ; commute = λ f x → refl isEquivalenceₘ , cong f x
+  ; sym-commute = λ f x → refl isEquivalenceₘ , cong f x
+  }
+  where
+    module m = Monoid m
+    open m renaming (ε to εₘ; isEquivalence to isEquivalenceₘ)
+    open IsEquivalence
 
 monoid×μ : ∀ {l} → (m : Monoid l l) → NaturalTransformation (monoid×-endo m ∘F monoid×-endo m) (monoid×-endo m)
-monoid×μ record { _∙_ = _∙_ ; isMonoid = isMonoid } = record
-  { η = λ X → record { _⟨$⟩_ =  λ { (d , d₁ , value) → ( d ∙ d₁) , value } ; cong = λ { (d , d₁ , v) → congₘ d d₁ , v } }
-  ; commute = λ { record { cong = cong } (d , d₁ , v) → congₘ d d₁ , cong v }
-  ; sym-commute = λ { record { cong = cong } (d , d₁ , v) → congₘ d d₁ , cong v }
-  } where
-  congₘ = IsMagma.∙-cong $ IsSemigroup.isMagma $ IsMonoid.isSemigroup isMonoid
+monoid×μ m = record
+  { η = λ X → record
+    { _⟨$⟩_ =  λ { (d , d₁ , value) → ( d ∙ₘ d₁) , value }
+    ; cong = λ { (d , d₁ , v) → ∙-congₘ d d₁ , v }
+    }
+  ; commute = λ { record { cong = cong } (d , d₁ , v) → ∙-congₘ d d₁ , cong v }
+  ; sym-commute = λ { record { cong = cong } (d , d₁ , v) → ∙-congₘ d d₁ , cong v }
+  }
+  where
+    module m = Monoid m
+    open m renaming (_∙_ to _∙ₘ_; ∙-cong to ∙-congₘ)
 
 monoid×-monad : ∀ {l} → Monoid l l → Monad (Setoids l l)
 monoid×-monad m = record
-    { F = monoid×-endo m
-    ; η = monoid×-η m
-    ; μ = monoid×μ m
-    ; assoc     = λ { {x = a , b , c , _} {y = a₁ , b₁ , c₁ , _}  (p , p₁ , p₂ , p₃) → transᵐ (congᵐ p (congᵐ p₁ p₂)) (symᵐ (assoc m a₁ b₁ c₁)) , p₃ }
-    ; sym-assoc = λ { {x = a , b , c , _} {y = a₁ , b₁ , c₁ , _}  (p , p₁ , p₂ , p₃) → transᵐ (congᵐ (congᵐ p p₁) p₂)       (assoc m a₁ b₁ c₁)  , p₃ }
-    ; identityˡ  = λ { {x = x} (p₁ , p₂) → trans m (idʳ (proj₁ x)) p₁ , p₂ }
-    ; identityʳ  = λ { {x = x} (p₁ , p₂) → trans m (idˡ (proj₁ x)) p₁ , p₂ }
-    } where
-    congᵐ = IsMagma.∙-cong $ IsSemigroup.isMagma $ IsMonoid.isSemigroup $ Monoid.isMonoid m
-    symᵐ = IsMonoid.sym $ Monoid.isMonoid m
-    transᵐ = IsMonoid.trans $ Monoid.isMonoid m
-    idʳ = IsMonoid.identityʳ $ Monoid.isMonoid m
-    idˡ = IsMonoid.identityˡ $ Monoid.isMonoid m
+  { F = monoid×-endo m
+  ; η = monoid×-η m
+  ; μ = monoid×μ m
+  ; assoc     = λ { {x = a , b , c , _} {y = a₁ , b₁ , c₁ , _}  (p , p₁ , p₂ , p₃) → transₘ (∙-congₘ p (∙-congₘ p₁ p₂)) (symₘ (assoc m a₁ b₁ c₁)) , p₃ }
+  ; sym-assoc = λ { {x = a , b , c , _} {y = a₁ , b₁ , c₁ , _}  (p , p₁ , p₂ , p₃) → transₘ (∙-congₘ (∙-congₘ p p₁) p₂)       (assoc m a₁ b₁ c₁)  , p₃ }
+  ; identityˡ  = λ { {x = x} (p₁ , p₂) → trans m (idʳ (proj₁ x)) p₁ , p₂ }
+  ; identityʳ  = λ { {x = x} (p₁ , p₂) → trans m (idˡ (proj₁ x)) p₁ , p₂ }
+  }
+  where
+    module m = Monoid m
+    open m renaming (∙-cong to ∙-congₘ; identityʳ to idʳ; identityˡ to idˡ; trans to transₘ; sym to symₘ)
 
 natDuration : Monad (Setoids 0ℓ 0ℓ)
 natDuration = monoid×-monad +-0-nat-monoid
