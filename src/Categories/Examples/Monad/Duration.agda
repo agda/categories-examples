@@ -24,40 +24,47 @@ open import Data.Rational.Properties renaming (+-0-monoid to +-0-rational-monoid
 
 open Monoid public
 
-monoid×-₀ : Monoid 0ℓ 0ℓ → Setoid 0ℓ 0ℓ → Setoid 0ℓ 0ℓ
-monoid×-₀ record { Carrier = Carrierₘ ; _≈_ = _≈ₘ_ ; isMonoid = isMonoid } record { Carrier = Carrier ; _≈_ = _≈_ ; isEquivalence = isEquivalence } = record
-  { Carrier = Carrierₘ × Carrier
-  ; _≈_ = λ (x₁ , y₁) (x₂ , y₂) → x₁ ≈ₘ x₂ × y₁ ≈ y₂
+monoid×-₀ : ∀ {l} → Monoid l l → Setoid l l → Setoid l l
+monoid×-₀ m s = record
+  { Carrier = Carrierₘ × Carrierₛ
+  ; _≈_ = λ (x₁ , y₁) (x₂ , y₂) → x₁ ≈ₘ x₂ × y₁ ≈ₛ y₂
   ; isEquivalence = record
-      { refl = IsEquivalence.refl isEquivalenceₘ , IsEquivalence.refl isEquivalence
-      ; sym = λ (fst , snd) → IsEquivalence.sym isEquivalenceₘ fst , IsEquivalence.sym isEquivalence snd
-      ; trans = λ (fst₁ , snd₁) (fst₂ , snd₂) → IsEquivalence.trans isEquivalenceₘ fst₁ fst₂ , IsEquivalence.trans isEquivalence snd₁ snd₂
+      { refl = refl isEquivalenceₘ , refl isEquivalenceₛ
+      ; sym = λ (x₁≈x₂ , y₁≈y₂) → sym isEquivalenceₘ x₁≈x₂ , sym isEquivalenceₛ y₁≈y₂
+      ; trans = λ (x₁≈x₂ , y₁≈y₂) (x₂≈x₃ , y₂≈y₃) → trans isEquivalenceₘ x₁≈x₂ x₂≈x₃ , trans isEquivalenceₛ y₁≈y₂ y₂≈y₃
       }
-  } where isEquivalenceₘ = IsMagma.isEquivalence $ IsSemigroup.isMagma $ IsMonoid.isSemigroup isMonoid
+  }
+  where
+    module m = Monoid m
+    module s = Setoid s
+    open m renaming (Carrier to Carrierₘ; _≈_ to _≈ₘ_; isEquivalence to isEquivalenceₘ)
+    open s renaming (Carrier to Carrierₛ; _≈_ to _≈ₛ_; isEquivalence to isEquivalenceₛ)
+    open IsEquivalence
 
-monoid×-₁ : ∀ {A B : Setoid 0ℓ 0ℓ} → (m : Monoid 0ℓ 0ℓ) → (f : Setoids 0ℓ 0ℓ [ A , B ]) → Setoids 0ℓ 0ℓ [ monoid×-₀ m A , monoid×-₀ m B ]
+monoid×-₁ : ∀ {l} {A B : Setoid l l} → (m : Monoid l l) → (f : Setoids l l [ A , B ]) → Setoids l l [ monoid×-₀ m A , monoid×-₀ m B ]
 monoid×-₁ _ record { _⟨$⟩_ = f ; cong = cong } = record
   { _⟨$⟩_ = λ (fst ,  snd) → fst , f snd
   ; cong = λ (fst , snd) → fst , cong snd
   }
 
-monoid×-hom : {x y z : Setoid 0ℓ 0ℓ} {m : Monoid zero zero} {x₁ y₁ : Σ (Carrier m) (λ _ → Setoid.Carrier x)}
+monoid×-hom : let open Setoid renaming (Carrier to Carrierₛ) in
+    ∀ {l} {x y z : Setoid l l} {m : Monoid l l} {x₁ y₁ : Σ (Carrier m) (λ _ → Carrierₛ x)}
     → (f : Π x (indexedSetoid y))
     → (g : Π y (indexedSetoid z))
-    → (x Setoid.≈ proj₂ x₁) (proj₂ y₁)
-    → (z Setoid.≈ g ⟨$⟩ (f ⟨$⟩ proj₂ x₁)) (g ⟨$⟩ (f ⟨$⟩ proj₂ y₁))
-monoid×-hom record { cong = congᵐ } record { cong = cong } p = cong $ congᵐ p
+    → let open Setoid x renaming (_≈_ to _≈ₓ_) in (proj₂ x₁) ≈ₓ (proj₂ y₁)
+    → let open Setoid z renaming (_≈_ to _≈ₛ_) in (g ⟨$⟩ (f ⟨$⟩ proj₂ x₁)) ≈ₛ (g ⟨$⟩ (f ⟨$⟩ proj₂ y₁))
+monoid×-hom record { cong = congₘ } record { cong = congₛ } p = congₛ $ congₘ p
 
-monoid×-endo : Monoid 0ℓ 0ℓ → Endofunctor (Setoids 0ℓ 0ℓ)
+monoid×-endo : ∀ {l} → Monoid l l → Endofunctor (Setoids l l)
 monoid×-endo m =  record
   { F₀ = monoid×-₀ m
   ; F₁ = monoid×-₁ m
   ; identity = λ x → x
-  ; homomorphism = λ {_} {_} {_} {f} {g} {x₁} {y₁} (fst , snd) → fst , monoid×-hom {_} {_} {_} {m} {x₁} {y₁} f g snd
+  ; homomorphism = λ {_} {_} {_} {f} {g} {x₁} {y₁} (fst , snd) → fst , monoid×-hom {_} {_} {_} {_} {m} {x₁} {y₁} f g snd
   ; F-resp-≈ = λ x (fst , snd) → fst , x snd
   }
 
-monoid×-η : (m : Monoid 0ℓ 0ℓ) → NaturalTransformation idF (monoid×-endo m)
+monoid×-η : ∀ {l} → (m : Monoid l l) → NaturalTransformation idF (monoid×-endo m)
 monoid×-η record { ε = ε ; isMonoid = isMonoid } = record
   { η = λ _ → record { _⟨$⟩_ = λ x → ε , x ; cong = λ x → isEquivalenceᵐ , x }
   ; commute = λ f x → isEquivalenceᵐ , cong f x
@@ -65,7 +72,7 @@ monoid×-η record { ε = ε ; isMonoid = isMonoid } = record
   } where
   isEquivalenceᵐ = IsEquivalence.refl $ IsMagma.isEquivalence $ IsSemigroup.isMagma $ IsMonoid.isSemigroup isMonoid
 
-monoid×μ : (m : Monoid 0ℓ 0ℓ) → NaturalTransformation (monoid×-endo m ∘F monoid×-endo m) (monoid×-endo m)
+monoid×μ : ∀ {l} → (m : Monoid l l) → NaturalTransformation (monoid×-endo m ∘F monoid×-endo m) (monoid×-endo m)
 monoid×μ record { _∙_ = _∙_ ; isMonoid = isMonoid } = record
   { η = λ X → record { _⟨$⟩_ =  λ { (d , d₁ , value) → ( d ∙ d₁) , value } ; cong = λ { (d , d₁ , v) → congₘ d d₁ , v } }
   ; commute = λ { record { cong = cong } (d , d₁ , v) → congₘ d d₁ , cong v }
@@ -73,7 +80,7 @@ monoid×μ record { _∙_ = _∙_ ; isMonoid = isMonoid } = record
   } where
   congₘ = IsMagma.∙-cong $ IsSemigroup.isMagma $ IsMonoid.isSemigroup isMonoid
 
-monoid×-monad : Monoid 0ℓ 0ℓ → Monad (Setoids 0ℓ 0ℓ)
+monoid×-monad : ∀ {l} → Monoid l l → Monad (Setoids l l)
 monoid×-monad m = record
     { F = monoid×-endo m
     ; η = monoid×-η m
