@@ -10,7 +10,7 @@ open import Relation.Binary
 open import Relation.Binary.Indexed.Heterogeneous.Construct.Trivial
 
 open import Data.Product using (Σ; _,_; _×_; proj₁; proj₂)
-open import Algebra using (Monoid; IsMonoid; IsSemigroup; IsMagma)
+open import Algebra using (Monoid)
 
 open import Categories.Category
 open import Categories.Category.Instance.Setoids
