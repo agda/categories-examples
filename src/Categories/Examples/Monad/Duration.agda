@@ -75,8 +75,8 @@ monoid×-η m = record
     open m renaming (ε to εₘ; isEquivalence to isEquivalenceₘ)
     open IsEquivalence
 
-monoid×μ : ∀ {l} → (m : Monoid l l) → NaturalTransformation (monoid×-endo m ∘F monoid×-endo m) (monoid×-endo m)
-monoid×μ m = record
+monoid×-μ : ∀ {l} → (m : Monoid l l) → NaturalTransformation (monoid×-endo m ∘F monoid×-endo m) (monoid×-endo m)
+monoid×-μ m = record
   { η = λ X → record
     { _⟨$⟩_ =  λ { (d , d₁ , value) → ( d ∙ₘ d₁) , value }
     ; cong = λ { (d , d₁ , v) → ∙-congₘ d d₁ , v }
@@ -92,7 +92,7 @@ monoid×-monad : ∀ {l} → Monoid l l → Monad (Setoids l l)
 monoid×-monad m = record
   { F = monoid×-endo m
   ; η = monoid×-η m
-  ; μ = monoid×μ m
+  ; μ = monoid×-μ m
   ; assoc     = λ { {x = a , b , c , _} {y = a₁ , b₁ , c₁ , _}  (p , p₁ , p₂ , p₃) → transₘ (∙-congₘ p (∙-congₘ p₁ p₂)) (symₘ (assoc m a₁ b₁ c₁)) , p₃ }
   ; sym-assoc = λ { {x = a , b , c , _} {y = a₁ , b₁ , c₁ , _}  (p , p₁ , p₂ , p₃) → transₘ (∙-congₘ (∙-congₘ p p₁) p₂)       (assoc m a₁ b₁ c₁)  , p₃ }
   ; identityˡ  = λ { {x = x} (p₁ , p₂) → trans m (idʳ (proj₁ x)) p₁ , p₂ }
