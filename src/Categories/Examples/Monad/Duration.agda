@@ -3,7 +3,6 @@ module Duration where
 
 open import Level
 
-open import Function using (_$_)
 open import Function.Equality using (Π; _⟨$⟩_; cong)
 
 open import Relation.Binary
@@ -43,25 +42,17 @@ monoid×-₀ m s = record
 
 monoid×-₁ : ∀ {l} {A B : Setoid l l} → (m : Monoid l l) → (f : Setoids l l [ A , B ]) → Setoids l l [ monoid×-₀ m A , monoid×-₀ m B ]
 monoid×-₁ _ record { _⟨$⟩_ = f ; cong = cong } = record
-  { _⟨$⟩_ = λ (fst ,  snd) → fst , f snd
-  ; cong = λ (fst , snd) → fst , cong snd
+  { _⟨$⟩_ = λ (aₘ ,  bₛ) → aₘ , f bₛ
+  ; cong = λ (proj₁≈ ,  proj₂≈) → proj₁≈ , cong proj₂≈
   }
-
-monoid×-hom : let open Setoid renaming (Carrier to Carrierₛ) in
-  ∀ {l} {x y z : Setoid l l} {m : Monoid l l} {x₁ y₁ : Σ (Carrier m) (λ _ → Carrierₛ x)}
-  → (f : Π x (indexedSetoid y))
-  → (g : Π y (indexedSetoid z))
-  → let open Setoid x renaming (_≈_ to _≈ₓ_) in (proj₂ x₁) ≈ₓ (proj₂ y₁)
-  → let open Setoid z renaming (_≈_ to _≈ₛ_) in (g ⟨$⟩ (f ⟨$⟩ proj₂ x₁)) ≈ₛ (g ⟨$⟩ (f ⟨$⟩ proj₂ y₁))
-monoid×-hom record { cong = congₘ } record { cong = congₛ } p = congₛ $ congₘ p
 
 monoid×-endo : ∀ {l} → Monoid l l → Endofunctor (Setoids l l)
 monoid×-endo m =  record
   { F₀ = monoid×-₀ m
   ; F₁ = monoid×-₁ m
   ; identity = λ x≈y → x≈y
-  ; homomorphism = λ {_} {_} {_} {f} {g} {x₁} {y₁} (fst , snd) → fst , monoid×-hom {_} {_} {_} {_} {m} {x₁} {y₁} f g snd
-  ; F-resp-≈ = λ x (fst , snd) → fst , x snd
+  ; homomorphism = λ { {f = record { cong = congₘ }} {g = record { cong = congₛ }} (proj₁x≈proj₁y , proj₂x≈proj₂y) → proj₁x≈proj₁y , congₛ (congₘ proj₂x≈proj₂y) }
+  ; F-resp-≈ = λ f (proj₁≈ , proj₂≈) → proj₁≈ , f proj₂≈
   }
 
 monoid×-η : ∀ {l} → (m : Monoid l l) → NaturalTransformation idF (monoid×-endo m)
