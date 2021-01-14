@@ -1,20 +1,22 @@
 {-# OPTIONS --safe --without-K #-}
-module Duration where
+module Categories.Examples.Monad.Duration where
 
+-- Monad induced by pairing a Monoid and a Setoid
 open import Level
 
+open import Function.Base using (_-⟪_⟫-_; _on_; _∘_) renaming (id to id→)
 open import Function.Equality using (Π; _⟨$⟩_; cong)
 
 open import Relation.Binary
 open import Relation.Binary.Indexed.Heterogeneous.Construct.Trivial
 
-open import Data.Product using (Σ; _,_; _×_; proj₁; proj₂)
+open import Data.Product using (Σ; _,_; _×_; proj₁; proj₂; dmap′; zip; map₁; map₂)
 open import Algebra using (Monoid)
 
 open import Categories.Category
 open import Categories.Category.Instance.Setoids
 open import Categories.Functor renaming (id to idF)
-open import Categories.NaturalTransformation using (NaturalTransformation)
+open import Categories.NaturalTransformation using (NaturalTransformation; ntHelper)
 open import Categories.Monad using (Monad)
 
 open import Data.Nat.Properties renaming (+-0-monoid to +-0-nat-monoid)
@@ -23,75 +25,65 @@ open import Data.Rational.Properties renaming (+-0-monoid to +-0-rational-monoid
 
 open Monoid public
 
-monoid×-₀ : ∀ {l} → Monoid l l → Setoid l l → Setoid l l
+monoid×-₀ : ∀ {l₁ l₂ e₁ e₂} → Monoid l₁ e₁ → Setoid l₂ e₂ → Setoid _ _
 monoid×-₀ m s = record
-  { Carrier = Carrierₘ × Carrierₛ
-  ; _≈_ = λ (x₁ , y₁) (x₂ , y₂) → x₁ ≈ₘ x₂ × y₁ ≈ₛ y₂
+  { Carrier = m.Carrier × s.Carrier
+  ; _≈_ = m._≈_ on proj₁ -⟪ _×_ ⟫- s._≈_ on proj₂
   ; isEquivalence = record
-      { refl = refl isEquivalenceₘ , refl isEquivalenceₛ
-      ; sym = λ (x₁≈x₂ , y₁≈y₂) → sym isEquivalenceₘ x₁≈x₂ , sym isEquivalenceₛ y₁≈y₂
-      ; trans = λ (x₁≈x₂ , y₁≈y₂) (x₂≈x₃ , y₂≈y₃) → trans isEquivalenceₘ x₁≈x₂ x₂≈x₃ , trans isEquivalenceₛ y₁≈y₂ y₂≈y₃
+      { refl = m.refl , s.refl
+      ; sym = dmap′ m.sym s.sym
+      ; trans = zip m.trans s.trans
       }
   }
   where
     module m = Monoid m
     module s = Setoid s
-    open m renaming (Carrier to Carrierₘ; _≈_ to _≈ₘ_; isEquivalence to isEquivalenceₘ)
-    open s renaming (Carrier to Carrierₛ; _≈_ to _≈ₛ_; isEquivalence to isEquivalenceₛ)
-    open IsEquivalence
 
-monoid×-₁ : ∀ {l} {A B : Setoid l l} → (m : Monoid l l) → (f : Setoids l l [ A , B ]) → Setoids l l [ monoid×-₀ m A , monoid×-₀ m B ]
-monoid×-₁ _ record { _⟨$⟩_ = f ; cong = cong } = record
-  { _⟨$⟩_ = λ (aₘ ,  bₛ) → aₘ , f bₛ
-  ; cong = λ (proj₁≈ ,  proj₂≈) → proj₁≈ , cong proj₂≈
+monoid×-₁ : ∀ {l₁ l₂ e₁ e₂} {A B : Setoid l₂ e₂} → (m : Monoid l₁ e₁) → (f : Setoids l₂ e₂ [ A , B ]) → Setoids _ _ [ monoid×-₀ m A , monoid×-₀ m B ]
+monoid×-₁ _ f = record
+  { _⟨$⟩_ = map₂ (_⟨$⟩_ f)
+  ; cong = map₂ (cong f)
   }
 
-monoid×-endo : ∀ {l} → Monoid l l → Endofunctor (Setoids l l)
+-- levels have to be the same because everything gets put into the same stop
+monoid×-endo : ∀ {l₁ e₁} → Monoid l₁ e₁ → Endofunctor (Setoids l₁ e₁)
 monoid×-endo m =  record
   { F₀ = monoid×-₀ m
   ; F₁ = monoid×-₁ m
-  ; identity = λ x≈y → x≈y
-  ; homomorphism = λ { {f = record { cong = congₘ }} {g = record { cong = congₛ }} (proj₁x≈proj₁y , proj₂x≈proj₂y) → proj₁x≈proj₁y , congₛ (congₘ proj₂x≈proj₂y) }
-  ; F-resp-≈ = λ f (proj₁≈ , proj₂≈) → proj₁≈ , f proj₂≈
+  ; identity = id→
+  ; homomorphism = λ {_} {_} {_} {f} {g} p → map₂ (cong g ∘ cong f) p
+  ; F-resp-≈ = λ f → map₂ f
   }
 
-monoid×-η : ∀ {l} → (m : Monoid l l) → NaturalTransformation idF (monoid×-endo m)
-monoid×-η m = record
-  { η = λ _ → record { _⟨$⟩_ = λ x → εₘ , x ; cong = λ x → refl isEquivalenceₘ , x }
-  ; commute = λ f x → refl isEquivalenceₘ , cong f x
-  ; sym-commute = λ f x → refl isEquivalenceₘ , cong f x
+monoid×-η : ∀ {l e} → (m : Monoid l e) → NaturalTransformation idF (monoid×-endo m)
+monoid×-η m = ntHelper record
+  { η = λ _ → record { _⟨$⟩_ = m.ε ,_ ; cong = m.refl ,_ }
+  ; commute = λ f x → m.refl , cong f x
   }
-  where
-    module m = Monoid m
-    open m renaming (ε to εₘ; isEquivalence to isEquivalenceₘ)
-    open IsEquivalence
+  where module m = Monoid m
 
 monoid×-μ : ∀ {l} → (m : Monoid l l) → NaturalTransformation (monoid×-endo m ∘F monoid×-endo m) (monoid×-endo m)
-monoid×-μ m = record
+monoid×-μ m = ntHelper record
   { η = λ X → record
-    { _⟨$⟩_ =  λ { (d , d₁ , value) → ( d ∙ₘ d₁) , value }
-    ; cong = λ { (d , d₁ , v) → ∙-congₘ d d₁ , v }
+    { _⟨$⟩_ =  λ { (d , d₁ , value) → ( d m.∙ d₁) , value }
+    ; cong = λ { (d , d₁ , v) → m.∙-cong d d₁ , v }
     }
-  ; commute = λ { record { cong = cong } (d , d₁ , v) → ∙-congₘ d d₁ , cong v }
-  ; sym-commute = λ { record { cong = cong } (d , d₁ , v) → ∙-congₘ d d₁ , cong v }
+  ; commute = λ { f (d , d₁ , v) → m.∙-cong d d₁ , cong f v }
   }
   where
     module m = Monoid m
-    open m renaming (_∙_ to _∙ₘ_; ∙-cong to ∙-congₘ)
 
 monoid×-monad : ∀ {l} → Monoid l l → Monad (Setoids l l)
 monoid×-monad m = record
   { F = monoid×-endo m
   ; η = monoid×-η m
   ; μ = monoid×-μ m
-  ; assoc     = λ { {x = a , b , c , _} {y = a₁ , b₁ , c₁ , _}  (p , p₁ , p₂ , p₃) → transₘ (∙-congₘ p (∙-congₘ p₁ p₂)) (symₘ (assoc m a₁ b₁ c₁)) , p₃ }
-  ; sym-assoc = λ { {x = a , b , c , _} {y = a₁ , b₁ , c₁ , _}  (p , p₁ , p₂ , p₃) → transₘ (∙-congₘ (∙-congₘ p p₁) p₂)       (assoc m a₁ b₁ c₁)  , p₃ }
-  ; identityˡ  = λ { {x = x} (p₁ , p₂) → trans m (idʳ (proj₁ x)) p₁ , p₂ }
-  ; identityʳ  = λ { {x = x} (p₁ , p₂) → trans m (idˡ (proj₁ x)) p₁ , p₂ }
+  ; assoc     = λ (p₀ , p₁ , p₂ , p₃) → m.trans (m.∙-cong p₀ (m.∙-cong p₁ p₂)) (m.sym (m.assoc _ _ _)) , p₃
+  ; sym-assoc = λ (p₀ , p₁ , p₂ , p₃) → m.trans (m.∙-cong (m.∙-cong p₀ p₁) p₂) (      (m.assoc _ _ _)) , p₃
+  ; identityˡ  = λ p → map₁ (m.trans (m.identityʳ _)) p
+  ; identityʳ  = λ p → map₁ (m.trans (m.identityˡ _)) p
   }
-  where
-    module m = Monoid m
-    open m renaming (∙-cong to ∙-congₘ; identityʳ to idʳ; identityˡ to idˡ; trans to transₘ; sym to symₘ)
+  where module m = Monoid m
 
 natDuration : Monad (Setoids 0ℓ 0ℓ)
 natDuration = monoid×-monad +-0-nat-monoid
